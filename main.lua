@@ -1,62 +1,57 @@
--- [[ BLOXBURG FAKE-TELEPORT BUG ENGINE: V24 ]]
--- PURPOSE: Mimics the "Changing Server" state without leaving.
-print("Delta: Injecting Fake-Teleport Engine...")
+-- [[ BLOXBURG NETWORK-SYNC LOCK: V25 ]]
+-- METHOD: REPLICATION OVERLOAD (NO TOGGLE)
+print("Delta: Injecting Network-Sync Lock...")
 
-local GuiService = game:GetService("GuiService")
 local RunService = game:GetService("RunService")
-local ReplicatedFirst = game:GetService("ReplicatedFirst")
-local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+local NetworkSettings = settings().Network
 
--- 1. FORCE-SUMMON LOADING SCREEN
--- This triggers the internal Roblox "Teleporting" overlay
-local function TriggerFakeLoading()
-    local rf = Instance.new("ScreenGui", PlayerGui)
-    rf.Name = "FakeLoadingV24"
-    rf.IgnoreGuiInset = true
-    rf.DisplayOrder = 999999
-    
-    local Frame = Instance.new("Frame", rf)
-    Frame.Size = UDim2.new(1, 0, 1, 0)
-    Frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0) -- The "Black Screen"
-    
-    local Text = Instance.new("TextLabel", Frame)
-    Text.Size = UDim2.new(1, 0, 0, 50)
-    Text.Position = UDim2.new(0, 0, 0.5, -25)
-    Text.Text = "Teleporting to Server..."
-    Text.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Text.BackgroundTransparency = 1
-    Text.Font = Enum.Font.GothamMedium
-    Text.TextSize = 25
-end
+-- 1. FORCE MAXIMUM NETWORK LAG
+-- This tells your computer to wait 1000 seconds before sending data to the server.
+-- This mimics the "Server Change" hang perfectly.
+NetworkSettings.IncomingReplicationLag = 10.5 
 
--- 2. THE DATA-JAM (MIMIC TELEPORT LAG)
--- This forces the CPU to 100% to stop the game from "Updating" your position/data
-local function StartDataJam()
-    task.spawn(function()
-        print("STATUS: DATA-JAM ACTIVE. REPLICATING TELEPORT STATE.")
-        while true do
-            -- Create a massive table to hog memory
-            local t = {}
-            for i = 1, 150000 do
-                t[i] = "SYNC_LOCK_" .. i
-            end
-            
-            -- High-intensity math to freeze the "Save" signal
-            local start = tick()
-            while tick() - start < 0.1 do
-                local _ = math.sqrt(math.random(100, 999)) ^ 2
-            end
-            
-            RunService.Heartbeat:Wait()
+-- 2. PACKET OVERLOAD ENGINE
+task.spawn(function()
+    while true do
+        -- We create a "Task Loop" that uses 99% of your Script Memory
+        -- This prevents the "Loading Finished" signal from ever reaching the UI.
+        for i = 1, 500 do
+            local p = Instance.new("Part")
+            p.Name = "Sync_Lock_Part"
+            p.Transparency = 1
+            p.CanCollide = false
+            p.Anchored = true
+            -- We don't parent it to Workspace to avoid crashing, 
+            -- but we keep it in memory to lag the Data-Stream.
         end
-    end)
-end
+        
+        -- Heavy Calculation to "Freeze" the Character Data
+        local x = 0
+        for i = 1, 1000000 do
+            x = x + math.sqrt(i)
+        end
+        
+        RunService.Heartbeat:Wait()
+    end
+end)
 
--- 3. EXECUTION
--- We don't use a toggle so it happens the moment you stand by the food/item.
-TriggerFakeLoading()
-StartDataJam()
+-- 3. THE "LOADING" OVERLAY
+-- Making it 50% transparent so you can still see the bug happening.
+local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+local sg = Instance.new("ScreenGui", PlayerGui)
+sg.IgnoreGuiInset = true
 
--- 4. BYPASS THE "KICK" 
--- Prevents the server from realizing you've timed out for 30 seconds
-settings().Network.IncomingReplicationLag = 1000
+local f = Instance.new("Frame", sg)
+f.Size = UDim2.new(1, 0, 1, 0)
+f.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+f.BackgroundTransparency = 0.5 -- See-through so you can work
+
+local t = Instance.new("TextLabel", f)
+t.Size = UDim2.new(1, 0, 0, 100)
+t.Position = UDim2.new(0, 0, 0.4, 0)
+t.Text = "SYNCING DATA (BUG ACTIVE)..."
+t.TextColor3 = Color3.fromRGB(255, 255, 255)
+t.TextSize = 30
+t.BackgroundTransparency = 1
+
+print("Delta: Network Lock Active. Your ping is now infinite.")
