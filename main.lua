@@ -1,54 +1,69 @@
--- [[ BLOXBURG BLIND-JOIN & INFINITE STALL: V27 ]]
-print("Delta: Injecting Blind-Join Engine...")
+-- [[ BLOXBURG INFINITE-HOP STALLER: V28 ]]
+print("Delta: Injecting Infinite-Hop Engine...")
 
-local ContentProvider = game:GetService("ContentProvider")
+local TeleportService = game:GetService("TeleportService")
+local Player = game:GetService("Players").LocalPlayer
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- 1. THE AUTO-JOIN ENGINE (Bypasses UI)
--- This tries to force-join a neighborhood even if your screen is black.
-task.spawn(function()
-    while true do
-        -- Bloxburg uses RemoteEvents for joining. 
-        -- We attempt to fire the 'Join' signal every 2 seconds until successful.
-        local joinRemote = ReplicatedStorage:FindFirstChild("JoinNeighborhood", true) 
-        if joinRemote and joinRemote:IsA("RemoteEvent") then
-            -- Firing with a 'nil' or random string usually triggers a random join
-            joinRemote:FireServer("Random") 
-            print("Delta: Sent Blind-Join Request...")
+_G.LoopHopping = true
+
+-- 1. THE RECURSIVE HOOK
+-- This function calls itself to keep the "Teleporting" state active in the engine
+local function InitiateInfiniteHop()
+    task.spawn(function()
+        while _G.LoopHopping do
+            -- We use 'Teleport' to a random public server
+            -- By calling this repeatedly, the 'Data Save' signal never gets a 'Finish' confirmation
+            pcall(function()
+                TeleportService:Teleport(185655149, Player) -- Bloxburg PlaceID
+            end)
+            
+            -- This delay is the "Sweet Spot"
+            -- Too fast and it crashes; too slow and it finishes. 
+            -- 0.5s keeps the 'Transition' state stuck.
+            task.wait(0.5) 
         end
-        task.wait(2)
-    end
-end)
+    end)
+end
 
--- 2. THE ASSET-JAM (The "Forever Loading" part)
+-- 2. THE BACKGROUND DATA CLOG
+-- While the hopping is happening, we fill the RequestQueue so it moves slowly
 task.spawn(function()
-    while true do
-        local FakeQueue = {}
-        for i = 1, 15000 do -- Increased to 15,000 for even longer stall
-            table.insert(FakeQueue, "rbxassetid://111" .. math.random(1000000, 9999999))
+    while _G.LoopHopping do
+        -- Overloading the 'TeleportData' buffer
+        local massiveData = {}
+        for i = 1, 5000 do
+            massiveData[i] = "HOPSYNC_DATA_STALL_" .. i
         end
-
-        pcall(function()
-            -- This blocks the thread, making the 'Loading' stay stuck
-            ContentProvider:PreloadAsync(FakeQueue)
-        end)
+        
+        -- Creating "Micro-Lag" to keep the character in a 'Ghost' state
+        local start = tick()
+        while tick() - start < 0.1 do
+            local _ = math.cos(tick()) * math.sin(tick())
+        end
         
         RunService.Heartbeat:Wait()
     end
 end)
 
--- 3. THE PERMANENT BLACKOUT
-local Player = game:GetService("Players").LocalPlayer
-local PlayerGui = Player:WaitForChild("PlayerGui")
-local sg = Instance.new("ScreenGui", PlayerGui)
-sg.Name = "BlindStateV27"
-sg.IgnoreGuiInset = true
-sg.DisplayOrder = 1000000
+-- 3. UI NOTIFIER (No Black Screen)
+local sg = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
+local txt = Instance.new("TextLabel", sg)
+txt.Size = UDim2.new(0, 300, 0, 50)
+txt.Position = UDim2.new(0.5, -150, 0.1, 0)
+txt.BackgroundColor3 = Color3.fromRGB(255, 170, 0)
+txt.Text = "INFINITE HOP ACTIVE - BUG NOW"
+txt.Font = Enum.Font.GothamBold
+txt.TextSize = 18
 
-local f = Instance.new("Frame", sg)
-f.Size = UDim2.new(1, 0, 1, 0)
-f.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-f.ZIndex = 1000000
+-- 4. START
+InitiateInfiniteHop()
 
-print("Delta: V27 Active. Screen is locked black, Auto-Join is searching.")
+-- Press 'P' to stop the loop if you actually want to land in a server
+game:GetService("UserInputService").InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.P then
+        _G.LoopHopping = false
+        txt.Text = "HOPPING STOPPED - LANDING..."
+        txt.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+    end
+end)
