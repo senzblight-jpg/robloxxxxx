@@ -1,69 +1,59 @@
--- [[ BLOXBURG INFINITE-HOP STALLER: V28 ]]
-print("Delta: Injecting Infinite-Hop Engine...")
+-- [[ BLOXBURG NEIGHBORHOOD LOOP-HOPPER: V29 ]]
+print("Delta: Injecting Neighborhood-Hopping Staller...")
 
 local TeleportService = game:GetService("TeleportService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Player = game:GetService("Players").LocalPlayer
-local RunService = game:GetService("RunService")
 
-_G.LoopHopping = true
+_G.NeighborhoodHop = true
 
--- 1. THE RECURSIVE HOOK
--- This function calls itself to keep the "Teleporting" state active in the engine
-local function InitiateInfiniteHop()
-    task.spawn(function()
-        while _G.LoopHopping do
-            -- We use 'Teleport' to a random public server
-            -- By calling this repeatedly, the 'Data Save' signal never gets a 'Finish' confirmation
-            pcall(function()
-                TeleportService:Teleport(185655149, Player) -- Bloxburg PlaceID
-            end)
-            
-            -- This delay is the "Sweet Spot"
-            -- Too fast and it crashes; too slow and it finishes. 
-            -- 0.5s keeps the 'Transition' state stuck.
-            task.wait(0.5) 
-        end
-    end)
-end
+-- 1. THE JOIN-EVENT FINDER
+-- This locates the specific Bloxburg event used to switch neighborhoods
+local JoinEvent = ReplicatedStorage:FindFirstChild("JoinNeighborhood", true) or ReplicatedStorage:FindFirstChild("TeleportToNeighborhood", true)
 
--- 2. THE BACKGROUND DATA CLOG
--- While the hopping is happening, we fill the RequestQueue so it moves slowly
+-- 2. THE INFINITE NEIGHBORHOOD LOOP
 task.spawn(function()
-    while _G.LoopHopping do
-        -- Overloading the 'TeleportData' buffer
-        local massiveData = {}
-        for i = 1, 5000 do
-            massiveData[i] = "HOPSYNC_DATA_STALL_" .. i
+    while _G.NeighborhoodHop do
+        -- We generate a "Dummy" neighborhood join request
+        -- This forces the 'Loading' screen to trigger without a black-out
+        if JoinEvent then
+            pcall(function()
+                -- Firing with "Random" or a fake ID triggers the 'Searching' state
+                JoinEvent:FireServer("Random_Sync_" .. math.random(100, 999))
+            end)
         end
-        
-        -- Creating "Micro-Lag" to keep the character in a 'Ghost' state
-        local start = tick()
-        while tick() - start < 0.1 do
-            local _ = math.cos(tick()) * math.sin(tick())
-        end
-        
-        RunService.Heartbeat:Wait()
+
+        -- Secondary Force: Standard Teleport to the Bloxburg Start-Place
+        -- This ensures the character data stays 'In-Flight'
+        pcall(function()
+            TeleportService:Teleport(185655149, Player)
+        end)
+
+        -- STALL TIMING: 0.7 seconds is the fastest the server can handle 
+        -- multiple neighborhood requests before the 'Loading' UI disappears.
+        task.wait(0.7)
     end
 end)
 
--- 3. UI NOTIFIER (No Black Screen)
+-- 3. INTERACTION NOTIFIER (Keeps screen clear)
 local sg = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
-local txt = Instance.new("TextLabel", sg)
-txt.Size = UDim2.new(0, 300, 0, 50)
-txt.Position = UDim2.new(0.5, -150, 0.1, 0)
-txt.BackgroundColor3 = Color3.fromRGB(255, 170, 0)
-txt.Text = "INFINITE HOP ACTIVE - BUG NOW"
-txt.Font = Enum.Font.GothamBold
-txt.TextSize = 18
+local frame = Instance.new("Frame", sg)
+frame.Size = UDim2.new(0, 250, 0, 40)
+frame.Position = UDim2.new(0.5, -125, 0.05, 0)
+frame.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 
--- 4. START
-InitiateInfiniteHop()
+local label = Instance.new("TextLabel", frame)
+label.Size = UDim2.new(1, 0, 1, 0)
+label.Text = "NEIGHBORHOOD HOPPING..."
+label.TextColor3 = Color3.fromRGB(255, 255, 255)
+label.Font = Enum.Font.GothamBold
+label.BackgroundTransparency = 1
 
--- Press 'P' to stop the loop if you actually want to land in a server
+-- 4. EMERGENCY STOP (Press K)
 game:GetService("UserInputService").InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.P then
-        _G.LoopHopping = false
-        txt.Text = "HOPPING STOPPED - LANDING..."
-        txt.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+    if input.KeyCode == Enum.KeyCode.K then
+        _G.NeighborhoodHop = false
+        frame.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        label.Text = "HOP STOPPED"
     end
 end)
