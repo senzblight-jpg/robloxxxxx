@@ -1,27 +1,38 @@
--- [[ BLOXBURG LOADING PROLONG: REQUEST OVERLOAD ]]
-print("Delta: Injecting RequestQueue Bloat...")
+-- [[ BLOXBURG DATA-SYNC LOCK: V22 ]]
+print("Delta: Injecting Data-Sync Staller...")
 
-local TeleportService = game:GetService("TeleportService")
 local RunService = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
+local ContentProvider = game:GetService("ContentProvider")
 
-_G.BloatActive = true
-local GarbageStorage = {}
+_G.StallActive = true
+local SyncBuffer = {}
 
--- 1. THE BLOAT FUNCTION
--- This creates massive data "noise" that the engine must clean up before it can load the next server.
-local function StartBloat()
-    print("CRITICAL: Bloating Game Memory...")
+-- 1. THE STALLING ENGINE
+-- We create "Ghost Assets" that the game thinks it MUST load before the teleport completes.
+local function StartStall()
+    print("STALLING: Syncing Ghost Data...")
     task.spawn(function()
-        while _G.BloatActive do
-            -- Create 50,000 long strings to hog RAM
-            for i = 1, 50000 do
-                table.insert(GarbageStorage, string.rep("LOADING_DELAY_", 100))
+        while _G.StallActive do
+            -- Create 100,000 fake entry points in the memory table
+            -- This makes the "Character Saving" process take much longer
+            for i = 1, 100000 do
+                SyncBuffer[i] = string.rep("SYNC_LOCK_DATA_", 50)
             end
-            -- Force the engine to process asset requests that don't exist
-            for i = 1, 100 do
-                game:GetService("ContentProvider"):PreloadAsync({"rbxassetid://0"})
+            
+            -- Force the ContentProvider to check for 500 fake assets
+            -- This clogs the "Downloading Assets" bar in the loading screen
+            local fakeAssets = {}
+            for i = 1, 500 do
+                table.insert(fakeAssets, "rbxassetid://9999999" .. i)
             end
-            task.wait(0.1)
+            
+            pcall(function()
+                ContentProvider:PreloadAsync(fakeAssets)
+            end)
+            
+            -- This tiny wait prevents a crash while keeping the CPU at 100%
+            RunService.Stepped:Wait()
         end
     end)
 end
@@ -29,20 +40,19 @@ end
 -- 2. TOGGLE (Press X)
 game:GetService("UserInputService").InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.X then
-        _G.BloatActive = not _G.BloatActive
-        if _G.BloatActive then
-            StartBloat()
-            print("DELAY MODE: ACTIVE (Switch servers now)")
+        _G.StallActive = not _G.StallActive
+        if _G.StallActive then
+            StartStall()
+            print("STATUS: DATA-SYNC LOCKED. CHANGE SERVER NOW.")
         else
-            GarbageStorage = {} -- Clear it
-            print("DELAY MODE: OFF")
+            SyncBuffer = {}
+            print("STATUS: UNLOCKED.")
         end
     end
 end)
 
--- 3. AUTO-CLEANUP ATTEMPT
--- This tries to keep the script running until the very last millisecond of the teleport
-TeleportService.TeleportInitFailed:Connect(function()
-    _G.BloatActive = false
-    GarbageStorage = {}
+-- 3. THE TELEPORT HOOK
+-- This tries to keep the stall alive during the black screen
+game:GetService("GuiService").ErrorMessageChanged:Connect(function()
+    _G.StallActive = false -- Emergency stop if disconnected
 end)
