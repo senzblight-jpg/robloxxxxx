@@ -1,59 +1,72 @@
--- [[ BLOXBURG NEIGHBORHOOD LOOP-HOPPER: V29 ]]
-print("Delta: Injecting Neighborhood-Hopping Staller...")
+-- [[ BLOXBURG NEIGHBORHOOD GHOST-HOP: V30 ]]
+print("Delta: Searching for Neighborhood Handshake...")
 
 local TeleportService = game:GetService("TeleportService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Player = game:GetService("Players").LocalPlayer
 
-_G.NeighborhoodHop = true
+_G.InfiniteHopping = true
 
--- 1. THE JOIN-EVENT FINDER
--- This locates the specific Bloxburg event used to switch neighborhoods
-local JoinEvent = ReplicatedStorage:FindFirstChild("JoinNeighborhood", true) or ReplicatedStorage:FindFirstChild("TeleportToNeighborhood", true)
+-- 1. DYNAMIC REMOTE FINDER
+-- Bloxburg often renames these. This scans for the one that handles 'Neighborhoods'.
+local function GetJoinRemote()
+    for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+        if v:IsA("RemoteEvent") and (v.Name:find("Neighborhood") or v.Name:find("Teleport")) then
+            if v.Name:lower():find("join") or v.Name:lower():find("request") then
+                return v
+            end
+        end
+    end
+    -- Fallback to the most common internal name if scan fails
+    return ReplicatedStorage:FindFirstChild("JoinNeighborhood", true)
+end
 
--- 2. THE INFINITE NEIGHBORHOOD LOOP
+local TargetRemote = GetJoinRemote()
+
+-- 2. THE INFINITE LOOP ENGINE
 task.spawn(function()
-    while _G.NeighborhoodHop do
-        -- We generate a "Dummy" neighborhood join request
-        -- This forces the 'Loading' screen to trigger without a black-out
-        if JoinEvent then
+    while _G.InfiniteHopping do
+        if TargetRemote then
+            -- We fire a request to join a random neighborhood string.
+            -- This keeps the server trying to "Verify" your move.
             pcall(function()
-                -- Firing with "Random" or a fake ID triggers the 'Searching' state
-                JoinEvent:FireServer("Random_Sync_" .. math.random(100, 999))
+                -- Sending a random 6-digit string mimics a private neighborhood ID
+                local randomID = tostring(math.random(100000, 999999))
+                TargetRemote:FireServer(randomID)
             end)
         end
-
-        -- Secondary Force: Standard Teleport to the Bloxburg Start-Place
-        -- This ensures the character data stays 'In-Flight'
+        
+        -- Secondary "Engine Hang"
+        -- This forces the Roblox client to prepare for a teleport without leaving.
         pcall(function()
+            TeleportService:SetTeleportSetting("StallMode", true)
             TeleportService:Teleport(185655149, Player)
         end)
 
-        -- STALL TIMING: 0.7 seconds is the fastest the server can handle 
-        -- multiple neighborhood requests before the 'Loading' UI disappears.
-        task.wait(0.7)
+        -- WAIT TIMING (CRITICAL)
+        -- 0.8s is the perfect delay to keep the "Teleporting" UI stuck on your screen.
+        task.wait(0.8) 
     end
 end)
 
--- 3. INTERACTION NOTIFIER (Keeps screen clear)
+-- 3. INTERACTION NOTIFIER
 local sg = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
-local frame = Instance.new("Frame", sg)
-frame.Size = UDim2.new(0, 250, 0, 40)
-frame.Position = UDim2.new(0.5, -125, 0.05, 0)
-frame.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-
-local label = Instance.new("TextLabel", frame)
-label.Size = UDim2.new(1, 0, 1, 0)
-label.Text = "NEIGHBORHOOD HOPPING..."
-label.TextColor3 = Color3.fromRGB(255, 255, 255)
-label.Font = Enum.Font.GothamBold
-label.BackgroundTransparency = 1
+local lbl = Instance.new("TextLabel", sg)
+lbl.Size = UDim2.new(0, 300, 0, 50)
+lbl.Position = UDim2.new(0.5, -150, 0.05, 0)
+lbl.BackgroundColor3 = Color3.fromRGB(85, 0, 255)
+lbl.Text = "GHOST-HOP ACTIVE [K TO STOP]"
+lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+lbl.Font = Enum.Font.GothamBold
+lbl.TextSize = 16
 
 -- 4. EMERGENCY STOP (Press K)
 game:GetService("UserInputService").InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.K then
-        _G.NeighborhoodHop = false
-        frame.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        label.Text = "HOP STOPPED"
+        _G.InfiniteHopping = false
+        lbl.Text = "STOPPED"
+        lbl.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     end
 end)
+
+print("Delta: V30 Engine Active. Stand by food and watch for the 'Teleporting' UI.")
