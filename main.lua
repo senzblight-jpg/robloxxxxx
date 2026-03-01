@@ -1,58 +1,50 @@
--- [[ BLOXBURG DATA-SYNC LOCK: V22 ]]
-print("Delta: Injecting Data-Sync Staller...")
+-- [[ BLOXBURG INFINITE-HANG: V23 ]]
+-- AUTO-RUN: NO TOGGLE REQUIRED
+print("Delta: Injecting Infinite-Hang Engine...")
 
+local ContentProvider = game:GetService("ContentProvider")
 local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
-local ContentProvider = game:GetService("ContentProvider")
 
-_G.StallActive = true
-local SyncBuffer = {}
+-- 1. PREVENT SCRIPT FROM BEING KILLED
+-- This attempts to keep the data-jam alive during the "Black Screen"
+TeleportService.LocalPlayerArrivedFromServer:Connect(function()
+    print("ENTRY DETECTED: RESUMING STALL...")
+end)
 
--- 1. THE STALLING ENGINE
--- We create "Ghost Assets" that the game thinks it MUST load before the teleport completes.
-local function StartStall()
-    print("STALLING: Syncing Ghost Data...")
-    task.spawn(function()
-        while _G.StallActive do
-            -- Create 100,000 fake entry points in the memory table
-            -- This makes the "Character Saving" process take much longer
-            for i = 1, 100000 do
-                SyncBuffer[i] = string.rep("SYNC_LOCK_DATA_", 50)
-            end
-            
-            -- Force the ContentProvider to check for 500 fake assets
-            -- This clogs the "Downloading Assets" bar in the loading screen
-            local fakeAssets = {}
-            for i = 1, 500 do
-                table.insert(fakeAssets, "rbxassetid://9999999" .. i)
-            end
-            
-            pcall(function()
-                ContentProvider:PreloadAsync(fakeAssets)
-            end)
-            
-            -- This tiny wait prevents a crash while keeping the CPU at 100%
-            RunService.Stepped:Wait()
+-- 2. THE OVERLOAD ENGINE
+task.spawn(function()
+    local StallBuffer = {}
+    
+    while true do
+        -- STEP A: CLOG THE ASSET PIPELINE
+        -- This forces the loading bar to wait for 5,000 "errors" before loading the map
+        local AssetList = {}
+        for i = 1, 5000 do
+            table.insert(AssetList, "rbxassetid://666" .. math.random(100000, 999999))
         end
-    end)
-end
+        
+        -- High-priority async call that blocks the UI thread
+        pcall(function()
+            ContentProvider:PreloadAsync(AssetList)
+        end)
 
--- 2. TOGGLE (Press X)
-game:GetService("UserInputService").InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.X then
-        _G.StallActive = not _G.StallActive
-        if _G.StallActive then
-            StartStall()
-            print("STATUS: DATA-SYNC LOCKED. CHANGE SERVER NOW.")
-        else
-            SyncBuffer = {}
-            print("STATUS: UNLOCKED.")
+        -- STEP B: RAM SATURATION
+        -- We fill the memory with "Sync Noise" so the game can't save/load character data quickly
+        for i = 1, 200000 do
+            StallBuffer[i] = string.rep("DATA_SYNC_STALLER_V23_", 60)
         end
+
+        -- STEP C: CPU THROTTLE
+        -- This ensures the game cannot finish the "Server Connection" handshake instantly
+        local start = tick()
+        while tick() - start < 0.2 do
+            local _ = math.sin(tick()) * math.tan(tick())
+        end
+
+        -- Frame sync to prevent the client from crashing (keeps it in "Infinite Loading")
+        RunService.Heartbeat:Wait()
     end
 end)
 
--- 3. THE TELEPORT HOOK
--- This tries to keep the stall alive during the black screen
-game:GetService("GuiService").ErrorMessageChanged:Connect(function()
-    _G.StallActive = false -- Emergency stop if disconnected
-end)
+print("Delta: Engine Active. Server changes will now hang indefinitely.")
