@@ -1,45 +1,48 @@
--- [[ BLOXBURG INFINITE-LOADING: ASSET-JAM V26 ]]
--- No toggle needed - Inject right before changing servers.
-print("Delta: Injecting Asset-Jam Engine...")
+-- [[ BLOXBURG BLIND-JOIN & INFINITE STALL: V27 ]]
+print("Delta: Injecting Blind-Join Engine...")
 
 local ContentProvider = game:GetService("ContentProvider")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- 1. THE ASSET-JAMMER
--- This creates a "Black Hole" in the loading queue.
+-- 1. THE AUTO-JOIN ENGINE (Bypasses UI)
+-- This tries to force-join a neighborhood even if your screen is black.
 task.spawn(function()
     while true do
-        -- Generate 10,000 fake Asset IDs that don't exist
+        -- Bloxburg uses RemoteEvents for joining. 
+        -- We attempt to fire the 'Join' signal every 2 seconds until successful.
+        local joinRemote = ReplicatedStorage:FindFirstChild("JoinNeighborhood", true) 
+        if joinRemote and joinRemote:IsA("RemoteEvent") then
+            -- Firing with a 'nil' or random string usually triggers a random join
+            joinRemote:FireServer("Random") 
+            print("Delta: Sent Blind-Join Request...")
+        end
+        task.wait(2)
+    end
+end)
+
+-- 2. THE ASSET-JAM (The "Forever Loading" part)
+task.spawn(function()
+    while true do
         local FakeQueue = {}
-        for i = 1, 10000 do
-            -- Using random IDs ensures the cache can't skip them
-            table.insert(FakeQueue, "rbxassetid://999" .. math.random(1000000, 9999999))
+        for i = 1, 15000 do -- Increased to 15,000 for even longer stall
+            table.insert(FakeQueue, "rbxassetid://111" .. math.random(1000000, 9999999))
         end
 
-        print("JAMMING: Requesting 10,000 Ghost Assets...")
-        
-        -- This is a 'Blocking' call. It freezes the loading UI 
-        -- while it tries to find these fake items.
         pcall(function()
+            -- This blocks the thread, making the 'Loading' stay stuck
             ContentProvider:PreloadAsync(FakeQueue)
         end)
         
-        -- Small wait to prevent an actual crash, but keeps CPU at max
         RunService.Heartbeat:Wait()
     end
 end)
 
--- 2. THE MEMORY OVERLOAD
--- We fill the local RAM so the 'Cleanup' phase of the teleport takes longer.
-local MemoryBloat = {}
-for i = 1, 500000 do
-    MemoryBloat[i] = "BLOCK_CLEANUP_DATA_" .. i
-end
-
--- 3. THE VISUAL STALL
--- This makes the screen stay black even if the game tries to load.
-local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+-- 3. THE PERMANENT BLACKOUT
+local Player = game:GetService("Players").LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
 local sg = Instance.new("ScreenGui", PlayerGui)
+sg.Name = "BlindStateV27"
 sg.IgnoreGuiInset = true
 sg.DisplayOrder = 1000000
 
@@ -48,4 +51,4 @@ f.Size = UDim2.new(1, 0, 1, 0)
 f.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 f.ZIndex = 1000000
 
-print("Delta: Asset-Jam Active. Change server now to begin the hang.")
+print("Delta: V27 Active. Screen is locked black, Auto-Join is searching.")
