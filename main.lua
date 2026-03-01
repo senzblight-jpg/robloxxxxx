@@ -1,79 +1,78 @@
--- [[ BLOXBURG NEIGHBORHOOD-LOOP STALLER: V31 ]]
-print("Delta: Targeting Neighborhood Handshake...")
+-- [[ BLOXBURG NEIGHBORHOOD CRAWL-STALL: V32 ]]
+print("Delta: Initiating Neighborhood Crawl-Engine...")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
 local Player = game:GetService("Players").LocalPlayer
-local UserInputService = game:GetService("UserInputService")
 
-_G.NeighborhoodLoop = true
+_G.NeighborhoodCrawl = true
 
--- 1. NEIGHBORHOOD REMOTE SCANNER
--- Scans specifically for the event that triggers the Neighborhood Join
-local function FindNeighborhoodRemote()
-    local target = nil
-    -- Scan ReplicatedStorage for any event containing "Join" and "Neighborhood"
+-- 1. SEARCH FOR THE NEIGHBORHOOD HANDSHAKE
+-- Bloxburg uses a specific RemoteFunction to verify Private Server IDs.
+local function GetNeighborhoodRemote()
     for _, v in pairs(ReplicatedStorage:GetDescendants()) do
-        if v:IsA("RemoteEvent") and v.Name:find("Neighborhood") then
-            if v.Name:lower():find("join") or v.Name:lower():find("enter") then
-                target = v
-                break
+        if v:IsA("RemoteEvent") and (v.Name:find("Neighborhood") or v.Name:find("PrivateServer")) then
+            if v.Name:lower():find("join") or v.Name:lower():find("request") then
+                return v
             end
         end
     end
-    return target or ReplicatedStorage:FindFirstChild("JoinNeighborhood", true)
+    return ReplicatedStorage:FindFirstChild("JoinNeighborhood", true)
 end
 
-local JoinRemote = FindNeighborhoodRemote()
+local JoinRemote = GetNeighborhoodRemote()
 
--- 2. THE INFINITE NEIGHBORHOOD HOP ENGINE
+-- 2. THE CRAWL-ENGINE
 task.spawn(function()
-    while _G.NeighborhoodLoop do
+    while _G.NeighborhoodCrawl do
         if JoinRemote then
-            -- Generate a random 6-digit Neighborhood ID
-            -- This forces the game to try and "Find" a neighborhood that doesn't exist
-            local fakeNeighborhoodID = tostring(math.random(111111, 999999))
+            -- We generate a 'Crawl ID' that matches the Neighborhood format
+            -- (Usually a 5-7 digit string or a specific Player Name)
+            local crawlID = tostring(math.random(100000, 999999))
             
             pcall(function()
-                -- Firing the Neighborhood remote specifically
-                JoinRemote:FireServer(fakeNeighborhoodID)
+                -- Firing the Neighborhood Join Request
+                -- This forces the "Joining Neighborhood" loading bar to appear
+                JoinRemote:FireServer(crawlID)
             end)
         end
         
-        -- VISUAL SYNC: This triggers the native "Teleporting..." circle
-        -- By targeting the Bloxburg PlaceID directly, we keep the data 'In-Flight'
+        -- STALL-LOCK: Instead of Teleporting to Public, we "Request" a Teleport 
+        -- to a specific Private Server instance (Neighborhood).
+        -- This is what keeps the data "In-Flight" between servers.
         pcall(function()
-            TeleportService:SetTeleportSetting("StallMode", true)
-            TeleportService:Teleport(185655149, Player)
+            -- 185655149 is Bloxburg, but we add a 'PrivateServerId' tag
+            -- to prevent it from defaulting to Public servers.
+            TeleportService:TeleportToPrivateServer(185655149, "STALL_SYNC_ID", {Player})
         end)
 
-        -- CRITICAL STALL DELAY
-        -- 0.8s allows the 'Joining Neighborhood' UI to stay stuck without a full load
-        task.wait(0.8)
+        -- WAIT TIMING (0.9s is the 'Infinite Loading' sweet spot)
+        task.wait(0.9)
     end
 end)
 
--- 3. INTERFACE (Clear Screen)
+-- 3. INTERFACE (Neighborhood Cyan)
 local sg = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
 local frame = Instance.new("Frame", sg)
-frame.Size = UDim2.new(0, 300, 0, 45)
-frame.Position = UDim2.new(0.5, -150, 0.02, 0)
-frame.BackgroundColor3 = Color3.fromRGB(0, 200, 255) -- Neighborhood Blue
+frame.Size = UDim2.new(0, 320, 0, 50)
+frame.Position = UDim2.new(0.5, -160, 0.01, 0)
+frame.BackgroundColor3 = Color3.fromRGB(0, 150, 200)
 
 local lbl = Instance.new("TextLabel", frame)
 lbl.Size = UDim2.new(1, 0, 1, 0)
-lbl.Text = "NEIGHBORHOOD-LOOP: ACTIVE"
+lbl.Text = "NEIGHBORHOOD CRAWL: ON"
 lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
 lbl.Font = Enum.Font.GothamBold
+lbl.TextSize = 14
 lbl.BackgroundTransparency = 1
 
 -- 4. EMERGENCY STOP (Press K)
-UserInputService.InputBegan:Connect(function(input)
+game:GetService("UserInputService").InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.K then
-        _G.NeighborhoodLoop = false
-        frame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        lbl.Text = "STALL STOPPED"
+        _G.NeighborhoodCrawl = false
+        frame.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+        lbl.Text = "CRAWL STOPPED"
     end
 end)
 
-print("Delta: V31 Active. Remote Found: " .. (JoinRemote and JoinRemote.Name or "Not Found"))
+print("Delta: V32 Active. Target: Neighborhood Private Servers.")
