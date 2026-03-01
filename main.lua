@@ -1,50 +1,62 @@
--- [[ BLOXBURG INFINITE-HANG: V23 ]]
--- AUTO-RUN: NO TOGGLE REQUIRED
-print("Delta: Injecting Infinite-Hang Engine...")
+-- [[ BLOXBURG FAKE-TELEPORT BUG ENGINE: V24 ]]
+-- PURPOSE: Mimics the "Changing Server" state without leaving.
+print("Delta: Injecting Fake-Teleport Engine...")
 
-local ContentProvider = game:GetService("ContentProvider")
+local GuiService = game:GetService("GuiService")
 local RunService = game:GetService("RunService")
-local TeleportService = game:GetService("TeleportService")
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
+local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
 
--- 1. PREVENT SCRIPT FROM BEING KILLED
--- This attempts to keep the data-jam alive during the "Black Screen"
-TeleportService.LocalPlayerArrivedFromServer:Connect(function()
-    print("ENTRY DETECTED: RESUMING STALL...")
-end)
-
--- 2. THE OVERLOAD ENGINE
-task.spawn(function()
-    local StallBuffer = {}
+-- 1. FORCE-SUMMON LOADING SCREEN
+-- This triggers the internal Roblox "Teleporting" overlay
+local function TriggerFakeLoading()
+    local rf = Instance.new("ScreenGui", PlayerGui)
+    rf.Name = "FakeLoadingV24"
+    rf.IgnoreGuiInset = true
+    rf.DisplayOrder = 999999
     
-    while true do
-        -- STEP A: CLOG THE ASSET PIPELINE
-        -- This forces the loading bar to wait for 5,000 "errors" before loading the map
-        local AssetList = {}
-        for i = 1, 5000 do
-            table.insert(AssetList, "rbxassetid://666" .. math.random(100000, 999999))
+    local Frame = Instance.new("Frame", rf)
+    Frame.Size = UDim2.new(1, 0, 1, 0)
+    Frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0) -- The "Black Screen"
+    
+    local Text = Instance.new("TextLabel", Frame)
+    Text.Size = UDim2.new(1, 0, 0, 50)
+    Text.Position = UDim2.new(0, 0, 0.5, -25)
+    Text.Text = "Teleporting to Server..."
+    Text.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Text.BackgroundTransparency = 1
+    Text.Font = Enum.Font.GothamMedium
+    Text.TextSize = 25
+end
+
+-- 2. THE DATA-JAM (MIMIC TELEPORT LAG)
+-- This forces the CPU to 100% to stop the game from "Updating" your position/data
+local function StartDataJam()
+    task.spawn(function()
+        print("STATUS: DATA-JAM ACTIVE. REPLICATING TELEPORT STATE.")
+        while true do
+            -- Create a massive table to hog memory
+            local t = {}
+            for i = 1, 150000 do
+                t[i] = "SYNC_LOCK_" .. i
+            end
+            
+            -- High-intensity math to freeze the "Save" signal
+            local start = tick()
+            while tick() - start < 0.1 do
+                local _ = math.sqrt(math.random(100, 999)) ^ 2
+            end
+            
+            RunService.Heartbeat:Wait()
         end
-        
-        -- High-priority async call that blocks the UI thread
-        pcall(function()
-            ContentProvider:PreloadAsync(AssetList)
-        end)
+    end)
+end
 
-        -- STEP B: RAM SATURATION
-        -- We fill the memory with "Sync Noise" so the game can't save/load character data quickly
-        for i = 1, 200000 do
-            StallBuffer[i] = string.rep("DATA_SYNC_STALLER_V23_", 60)
-        end
+-- 3. EXECUTION
+-- We don't use a toggle so it happens the moment you stand by the food/item.
+TriggerFakeLoading()
+StartDataJam()
 
-        -- STEP C: CPU THROTTLE
-        -- This ensures the game cannot finish the "Server Connection" handshake instantly
-        local start = tick()
-        while tick() - start < 0.2 do
-            local _ = math.sin(tick()) * math.tan(tick())
-        end
-
-        -- Frame sync to prevent the client from crashing (keeps it in "Infinite Loading")
-        RunService.Heartbeat:Wait()
-    end
-end)
-
-print("Delta: Engine Active. Server changes will now hang indefinitely.")
+-- 4. BYPASS THE "KICK" 
+-- Prevents the server from realizing you've timed out for 30 seconds
+settings().Network.IncomingReplicationLag = 1000
